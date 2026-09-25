@@ -1,0 +1,21 @@
+[project]
+name = "agent-valley-nightmarket"
+version = "0.1.0"
+description = "Agent 101 Live · week five — the Night Market, and a host who never waits on your code"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.139.2",
+    "google-adk>=2.8.0,<3",
+    # chapter 5's tower: VertexAiMemoryBankService imports `vertexai` from here.
+    # The range is ADK 2.8's own `gcp` extra, so the two agree on the client.
+    "google-cloud-aiplatform[agent-engines]>=1.148.1,<2",
+    "google-genai>=2.14.0,<3",
+    "pydantic>=2.7",
+    # [standard] brings the websocket server the line runs on
+    "uvicorn[standard]>=0.51.0",
+    # scripts/call.py — the headless learner — is a websocket client
+    "websockets>=13",
+]
+
+[tool.uv]
+package = false

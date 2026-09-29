@@ -21,6 +21,33 @@ The sentence the week ends on: **Never make her wait on your code.**
 
 ## Run it
 
+### In Cloud Shell — what the codelab does
+
+Two scripts, then one command. Nothing to install, nothing to paste: Cloud Shell
+already has `gcloud`, Python, Node and `git`, and you are already signed in.
+
+```bash
+git clone https://github.com/cuppibla/agent-valley-nightmarket
+cd agent-valley-nightmarket
+./setup_project.sh                     # a billing-linked project, recorded in ~/project_id.txt
+./setup_codelab.sh                     # API on, .venv, the page built, .env written, preflight
+bash valley.sh                         # one process, one port
+```
+
+`setup_project.sh` makes a **new** project every plain run. To continue in the
+Agent Valley project from weeks one to four instead:
+
+```bash
+AGENT_VALLEY_REUSE_PROJECT=1 ./setup_project.sh
+```
+
+Then open the page through **Web Preview → Change port → 3450**. Port 3450 is
+not in Web Preview's quick list, so that step is not optional.
+
+### On a laptop
+
+Needs the Google Cloud SDK, Python 3.11+ and Node 20+.
+
 ```bash
 uv sync
 cp .env.example .env                   # point at a project, or paste a key
@@ -28,10 +55,14 @@ uv run python scripts/preflight.py     # is this machine ready — does the line
 bash valley.sh                         # one process, one port
 ```
 
-Open **http://localhost:3450**, press ▶ Start, take a seat, and follow the
-lanterns. Everything happens on that page: you talk to Nix, you edit the one
-line each chapter is about, and the workbench (adk web) is a drawer on the
-same page — same `stage/` folder, same `stage.db`.
+Open **http://localhost:3450**.
+
+### Either way
+
+Press ▶ Start, take a seat, and follow the lanterns. Everything happens on that
+page: you talk to Nix, you edit the one line each chapter is about, and the
+workbench (adk web) is a drawer on the same page — same `stage/` folder, same
+`stage.db`.
 
 Nothing restarts. An edit lands on your **next 📞 Call**; the chip under the
 editor says so.

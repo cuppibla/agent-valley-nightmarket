@@ -341,13 +341,24 @@ async def runtime_config(request: Request):
     websocket as `ws://<backendUrl>/run_live`. With the relative prefix ADK
     writes ("/workbench") that becomes `ws://workbench/run_live` — a host that
     does not exist, and a mic button that silently does nothing. Give it the
-    absolute origin the page was served from, proxies included."""
+    absolute origin the page was served from."""
     from fastapi.responses import JSONResponse
 
-    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
-    host = request.headers.get("x-forwarded-host", request.headers.get("host", "localhost:3450"))
-    return JSONResponse({"backendUrl": f"{proto}://{host}/workbench", "telemetry": False},
+    return JSONResponse({"backendUrl": f"{_origin(request)}/workbench", "telemetry": False},
                         headers={"Cache-Control": "no-store"})
+
+
+def _origin(request: Request) -> str:
+    """The origin the browser used. Behind a proxy — Cloud Shell's Web Preview
+    is one — only the browser knows it, and it says so in Referer. A guess from
+    the request alone can come out as http:// on an https:// page, and the
+    browser then refuses every call the workbench makes."""
+    seen = re.match(r"https?://[^/]+", request.headers.get("referer", ""))
+    if seen:
+        return seen.group(0)
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme).split(",")[0].strip()
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", "localhost:3450"))
+    return f"{proto}://{host.split(',')[0].strip()}"
 
 
 app.mount("/workbench", workbench)

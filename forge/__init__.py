@@ -12,6 +12,8 @@ started them from. Two ways, in this order:
      already have. Nothing to paste, nothing to leak. This is what Cloud Shell
      gives you for free.
   2. **An API key**, if you would rather not use a project. Put it in `.env`.
+
+Week five's line needs the first: its live model is a Vertex AI model.
 """
 
 import os
@@ -80,7 +82,8 @@ def load_env() -> str | None:
         os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "TRUE"
         if project:
             os.environ.setdefault("GOOGLE_CLOUD_PROJECT", project)
-        os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "global")
+        # Vertex serves its live models from regions, not from `global`.
+        os.environ.setdefault("GOOGLE_CLOUD_LOCATION", "us-central1")
         os.environ.pop("GOOGLE_API_KEY", None)   # never send both
         MODE = "vertex"
         return MODE

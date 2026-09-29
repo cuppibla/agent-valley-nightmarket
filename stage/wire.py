@@ -23,9 +23,10 @@ from google.adk.runners import Runner
 from google.genai import types
 
 from stage import door, memory
-from stage.agent import LIVE, NIX, root_agent
+from stage.agent import LIVE, NIX, PICKUP, root_agent
 
 APP = "stage"
+PICKUPS = 3                       # how many times the line is handed to her, at most
 
 
 # ── you → her ────────────────────────────────────────────────────────────────
@@ -117,6 +118,22 @@ async def observe(ws, event) -> None:
         call.clocks["_last_audio_at"] = now
     if event.turn_complete:
         await ws.send_json({"type": "turn"})
+        if "first_voice_ms" not in call.clocks and call.clocks.get("_pickups", 1) < PICKUPS:
+            call.clocks["_pickups"] = call.clocks.get("_pickups", 1) + 1
+            call.again = asyncio.create_task(pick_up_again(call), name="pick-up-again")
+
+
+def pick_up(queue: LiveRequestQueue) -> None:
+    """She speaks first: a discrete turn, before you say a word."""
+    queue.send_content(types.Content(role="user", parts=[types.Part(text=PICKUP)]))
+
+
+async def pick_up_again(call: door.Call) -> None:
+    """A live model sometimes answers the pick-up with an empty turn — a silent
+    line. Give her a second; if she still has not spoken, hand it to her again."""
+    await asyncio.sleep(1.0)
+    if door.current() is call and "first_voice_ms" not in call.clocks:
+        pick_up(call.queue)
 
 
 async def feed(ws, call: door.Call) -> None:
@@ -154,8 +171,7 @@ async def open_line(ws, sessions, mem, user_id: str, session_id: str) -> dict:
     call = door.open_call(queue)
     call.clocks["recalled"] = memory.count(remembered)
     await ws.send_json({"type": "clock", "recalled": call.clocks["recalled"]})
-    # she speaks first: a discrete turn, before you say a word
-    queue.send_content(types.Content(role="user", parts=[types.Part(text="[visitor] picks up the line")]))
+    pick_up(queue)
 
     up = asyncio.create_task(upstream(ws, queue), name="upstream")
     down = asyncio.create_task(downstream(ws, runner, queue, user_id, session_id), name="downstream")

@@ -27,6 +27,8 @@ from google.adk.events import Event
 from google.adk.memory.base_memory_service import BaseMemoryService
 from google.genai import types
 
+from stage.agent import PICKUP
+
 APP = "stage"
 ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 
@@ -115,8 +117,8 @@ def count(remembered: str) -> int:
 
 # ── at hang-up ───────────────────────────────────────────────────────────────
 def transcript_events(session) -> list[Event]:
-    """The call as plain text events, in order: you / nix. Wake-ups and stall
-    call-outs (the `[…]` lines) are stage directions, not conversation."""
+    """The call as plain text events, in order: you / nix. The pick-up and the
+    stall call-outs (the `[…]` lines) are stage directions, not conversation."""
     out: list[Event] = []
     for ev in session.events:
         it, ot = ev.input_transcription, ev.output_transcription
@@ -126,7 +128,7 @@ def transcript_events(session) -> list[Event]:
             out.append(_said("nix", ot.text))
         elif ev.content and ev.author == "user":
             text = " ".join(p.text for p in (ev.content.parts or []) if p.text).strip()
-            if text and not text.startswith("["):
+            if text and text != PICKUP and not text.startswith("["):
                 out.append(_said("user", text))
     return out
 

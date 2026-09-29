@@ -19,6 +19,9 @@ text events first.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import logging
 import os
 import re
 from pathlib import Path
@@ -38,6 +41,14 @@ ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
 FILING: dict = {"wait_for_completion": True}
 
 QUERY = "who is this visitor, what do they like at the market, what did they order"
+
+log = logging.getLogger("nightmarket")
+
+# The calls still on their way to the tower, by visitor. Memory Bank takes
+# seconds to extract; a call placed right after a hang-up waits for it, or it
+# would recall nothing.
+_filing: dict[str, asyncio.Future] = {}
+PATIENCE = 90.0
 
 
 def engine_named_in_env() -> str:
@@ -95,11 +106,21 @@ def tower_service(engine: str) -> BaseMemoryService:
 
 
 # ── at connect ───────────────────────────────────────────────────────────────
+def still_filing(user_id: str) -> bool:
+    """Is this visitor's last call still on its way to the tower?"""
+    pending = _filing.get(user_id)
+    return pending is not None and not pending.done()
+
+
 async def recall(mem: BaseMemoryService, user_id: str) -> str:
     """Ask the tower once. Returns a line for the instruction, or nothing."""
+    if still_filing(user_id):
+        with contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(asyncio.shield(_filing[user_id]), PATIENCE)
     try:
         found = await mem.search_memory(app_name=APP, user_id=user_id, query=QUERY)
-    except Exception:                                       # noqa: BLE001 — a tower that is down is chapter 5's problem, not the call's
+    except Exception as exc:                                # noqa: BLE001 — a tower that is down is chapter 5's problem, not the call's
+        log.warning("the tower did not answer the recall · %s: %s", type(exc).__name__, str(exc)[:200])
         return ""
     facts = []
     for m in found.memories:
@@ -143,7 +164,11 @@ async def file_call(mem: BaseMemoryService, session) -> int:
     events = transcript_events(session)
     if not events or getattr(mem, "keeps_nothing", False):
         return 0
-    await mem.add_events_to_memory(app_name=APP, user_id=session.user_id,
-                                   session_id=session.id, events=events,
-                                   custom_metadata=FILING)
+    done = _filing[session.user_id] = asyncio.get_running_loop().create_future()
+    try:
+        await mem.add_events_to_memory(app_name=APP, user_id=session.user_id,
+                                       session_id=session.id, events=events,
+                                       custom_metadata=FILING)
+    finally:
+        done.set_result(None)
     return len(events)

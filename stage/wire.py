@@ -163,6 +163,9 @@ async def open_line(ws, sessions, mem, user_id: str, session_id: str) -> dict:
         await sessions.create_session(app_name=APP, user_id=user_id, session_id=session_id)
 
     # chapter 5 — recall once, before the line opens. Never mid-call.
+    if memory.still_filing(user_id):
+        await ws.send_json({"type": "error", "message":
+                            "the tower is still filing your last call · the line opens when it is done"})
     remembered = await memory.recall(mem, user_id)
     agent = root_agent.model_copy(update={"instruction": NIX + remembered}) if remembered else root_agent
     runner = Runner(app_name=APP, agent=agent, session_service=sessions, memory_service=mem)

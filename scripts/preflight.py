@@ -65,13 +65,27 @@ async def live_check(model: str) -> str:
     return heard.strip()
 
 
+def why(mode: str) -> str:
+    """The likeliest fix for a line that did not open. The error itself is cut
+    short — a WebSocket close carries 123 bytes — so this reads the setup."""
+    where = os.environ.get("GOOGLE_CLOUD_LOCATION", "")
+    if mode == "api-key":
+        return ("This lab's live model is a Vertex AI model; an API key cannot reach it.\n"
+                "    Take GOOGLE_API_KEY out of .env and point gcloud at a project — see .env.example.")
+    if where == "global":
+        return ("Vertex serves its live models from regions, not from `global`.\n"
+                "    Set GOOGLE_CLOUD_LOCATION=us-central1 in .env.")
+    return ("Live needs a model that does audio in and out. Check the model name in\n"
+            f"    stage/agent.py and that your project can reach it in {where or 'its region'}.")
+
+
 def main() -> int:
     print()
     mode = forge.MODE
     if not mode:
-        print("  ✗ Not configured. Either point gcloud at a project:")
+        print("  ✗ Not configured. Point gcloud at a project:")
         print("        gcloud config set project YOUR_PROJECT_ID")
-        print("    or put a key in .env — see .env.example.")
+        print("    — see .env.example.")
         return 1
     where = os.environ.get("GOOGLE_CLOUD_PROJECT", "?") if mode == "vertex" else "an API key"
     print(f"  talking to Gemini through {DIM}{mode} · {where}{OFF}")
@@ -83,8 +97,7 @@ def main() -> int:
         print(f"  the line opens {DIM}· {agent.MODEL} · she said: {heard[:40] or '(audio only)'}{OFF}")
     except Exception as exc:                               # noqa: BLE001
         print(f"  ✗ the line did not open: {type(exc).__name__}: {exc}"[:240])
-        print("    Live needs a model that does audio in and out. Check the model name in\n"
-              "    stage/agent.py and that your key or project can reach it.")
+        print("    " + why(mode))
         return 1
 
     engine = memory.engine_named_in_env()

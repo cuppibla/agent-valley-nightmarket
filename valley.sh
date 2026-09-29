@@ -21,9 +21,9 @@ if [ ! -x .venv/bin/python ]; then
   exit 1
 fi
 if ! .venv/bin/python -c "import forge,sys; sys.exit(0 if forge.MODE else 1)" 2>/dev/null; then
-  echo "Not configured yet. Either point gcloud at a project (Vertex, the default):"
+  echo "Not configured yet. Point gcloud at a project:"
   echo "    gcloud config set project YOUR_PROJECT_ID"
-  echo "or put an API key in .env — see .env.example."
+  echo "See .env.example."
   exit 1
 fi
 
